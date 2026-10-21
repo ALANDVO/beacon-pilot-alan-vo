@@ -1,0 +1,82 @@
+# Docker Compose for local development
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: beacon-pilot-backend
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/beacon.db
+      - DEBUG=true
+      - ENVIRONMENT=development
+      - SECRET_KEY=dev-secret-change-in-production
+      - OIDC_ENABLED=false
+      - CORS_ORIGINS=["http://127.0.0.1:5173","http://localhost:5173"]
+    volumes:
+      - backend-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health', timeout=5).raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - beacon-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: beacon-pilot-frontend
+    ports:
+      - "127.0.0.1:5173:80"
+    environment:
+      - VITE_API_BASE_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - beacon-network
+
+  # Keycloak for OIDC authentication (profile: auth)
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: beacon-pilot-keycloak
+    profiles:
+      - auth
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=dev-file
+    command:
+      - start-dev
+      - --import-realm
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - beacon-network
+
+volumes:
+  backend-data:
+  keycloak-data:
+
+networks:
+  beacon-network:
+    driver: bridge
