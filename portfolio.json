@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "beacon-pilot-alan-vo",
+  "owner": "ALANDVO",
+  "email": "alanvo@gmail.com",
+  "domain": "AI/ML developer tools",
+  "summary": "Work in progress: beacon-pilot-alan-vo",
+  "workflows": [
+    "Capture conversation turns as structured memory units with document IDs and tags",
+    "Extract entities, relationships, and preferences via deterministic rule-based engine",
+    "Consolidate memories through similarity-based deduplication and merging"
+  ],
+  "auth": "oidc-keycloak-saml-broker",
+  "llm_providers": [
+    "openai-compatible",
+    "anthropic",
+    "gemini",
+    "ollama"
+  ],
+  "status": "work-in-progress"
+}

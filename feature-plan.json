@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "current_feature": "core-api-skeleton",
+  "features": [
+    {
+      "id": "core-api-skeleton",
+      "title": "Core FastAPI skeleton with health check and basic memory CRUD",
+      "status": "in_progress",
+      "acceptance": [
+        "FastAPI app starts and serves /health endpoint",
+        "SQLite persistence with memory units table",
+        "POST /memories creates a memory unit",
+        "GET /memories lists memory units with pagination",
+        "GET /memories/{id} retrieves a single memory unit",
+        "DELETE /memories/{id} deletes a memory unit",
+        "Backend tests pass for CRUD operations"
+      ],
+      "implementation": [
+        "backend/app/main.py",
+        "backend/app/api/memories.py",
+        "backend/app/models/memory.py",
+        "backend/app/core/database.py",
+        "backend/app/core/config.py",
+        "backend/requirements.txt",
+        "backend/tests/test_memories.py"
+      ],
+      "tests": [
+        "backend/tests/test_memories.py"
+      ]
+    },
+    {
+      "id": "memory-extraction-engine",
+      "title": "Deterministic memory extraction engine (offline core)",
+      "status": "planned",
+      "acceptance": [
+        "Extract structured facts from conversation text without LLM",
+        "Rule-based entity/relationship extraction",
+        "Configurable extraction rules",
+        "Unit tests for extraction logic"
+      ],
+      "implementation": [
+        "backend/app/services/extraction.py",
+        "backend/app/services/rules.py",
+        "backend/tests/test_extraction.py"
+      ],
+      "tests": [
+        "backend/tests/test_extraction.py"
+      ]
+    },
+    {
+      "id": "consolidation-workflow",
+      "title": "Memory consolidation workflow with deduplication",
+      "status": "planned",
+      "acceptance": [
+        "POST /consolidate triggers consolidation job",
+        "Deduplicates similar memory units",
+        "Merges related facts",
+        "Returns consolidation report"
+      ],
+      "implementation": [
+        "backend/app/services/consolidation.py",
+        "backend/app/api/consolidation.py",
+        "backend/tests/test_consolidation.py"
+      ],
+      "tests": [
+        "backend/tests/test_consolidation.py"
+      ]
+    },
+    {
+      "id": "frontend-skeleton",
+      "title": "React + TypeScript + Vite frontend with memory dashboard",
+      "status": "planned",
+      "acceptance": [
+        "Vite dev server runs",
+        "TypeScript compiles without errors",
+        "Memory list page with create/edit/delete",
+        "Loading/error/empty states",
+        "API client with typed endpoints"
+      ],
+      "implementation": [
+        "frontend/package.json",
+        "frontend/src/App.tsx",
+        "frontend/src/components/MemoryList.tsx",
+        "frontend/src/components/MemoryForm.tsx",
+        "frontend/src/api/client.ts",
+        "frontend/src/types/api.ts"
+      ],
+      "tests": [
+        "frontend/src/__tests__/MemoryList.test.tsx"
+      ]
+    },
+    {
+      "id": "oidc-auth",
+      "title": "OIDC Keycloak authentication with PKCE",
+      "status": "planned",
+      "acceptance": [
+        "Login redirects to Keycloak",
+        "Callback exchanges code for tokens",
+        "Protected API endpoints require valid token",
+        "Logout clears session"
+      ],
+      "implementation": [
+        "backend/app/core/auth.py",
+        "backend/app/api/auth.py",
+        "frontend/src/components/Login.tsx",
+        "frontend/src/auth/provider.tsx"
+      ],
+      "tests": [
+        "backend/tests/test_auth.py"
+      ]
+    },
+    {
+      "id": "llm-adapters",
+      "title": "LLM provider adapters (OpenAI-compatible, Anthropic, Gemini, Ollama)",
+      "status": "planned",
+      "acceptance": [
+        "Configurable provider via env vars",
+        "OpenAI-compatible adapter works",
+        "Anthropic messages adapter works",
+        "Gemini generateContent adapter works",
+        "Ollama adapter works",
+        "Redacted error handling"
+      ],
+      "implementation": [
+        "backend/app/services/llm/adapters.py",
+        "backend/app/services/llm/base.py",
+        "backend/tests/test_llm_adapters.py"
+      ],
+      "tests": [
+        "backend/tests/test_llm_adapters.py"
+      ]
+    },
+    {
+      "id": "docker-ci",
+      "title": "Dockerfiles, compose.yaml, and CI workflow",
+      "status": "planned",
+      "acceptance": [
+        "Backend Dockerfile builds and runs",
+        "Frontend Dockerfile builds and runs",
+        "compose.yaml includes Keycloak and volumes",
+        "CI runs backend/frontend tests and builds",
+        "Healthchecks configured"
+      ],
+      "implementation": [
+        "Dockerfile.backend",
+        "Dockerfile.frontend",
+        "compose.yaml",
+        ".github/workflows/ci.yml",
+        ".env.example"
+      ],
+      "tests": []
+    },
+    {
+      "id": "docs-portfolio",
+      "title": "README, portfolio.json, LICENSE, CHANGELOG",
+      "status": "planned",
+      "acceptance": [
+        "README with install/run/test steps",
+        "Mermaid architecture diagram",
+        "API endpoint reference",
+        "portfolio.json at root",
+        "MIT LICENSE",
+        "CHANGELOG.md"
+      ],
+      "implementation": [
+        "README.md",
+        "portfolio.json",
+        "LICENSE",
+        "CHANGELOG.md",
+        "pyproject.toml"
+      ],
+      "tests": []
+    }
+  ]
+}

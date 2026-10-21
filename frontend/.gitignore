@@ -1,0 +1,20 @@
+# Frontend .gitignore
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vite/
+coverage/
+.vercel
+.netlify
+.turbo
+.DS_Store
+*.tsbuildinfo
