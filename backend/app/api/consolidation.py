@@ -33,7 +33,7 @@ async def create_consolidation_batch(
 ) -> ConsolidationBatchResponse:
     """Create a new consolidation batch (async job)."""
     # Verify document exists
-    from ....models.memory import MemoryUnit
+    from app.models.memory import MemoryUnit
     from sqlalchemy import select, func
     
     db = get_database()
