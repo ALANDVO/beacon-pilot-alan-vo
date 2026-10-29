@@ -1,5 +1,6 @@
 """Memory unit API endpoints."""
 from typing import Optional
+import sys
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,9 +40,15 @@ async def create_memory(
 ) -> MemoryUnitResponse:
     """Create a new memory unit."""
     try:
-        return await service.create(data)
+        result = await service.create(data)
+        print(f"[DEBUG] Service returned: {result}", file=sys.stderr)
+        return result
     except ValueError as e:
+        print(f"[DEBUG] ValueError caught: {e}", file=sys.stderr)
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except Exception as e:
+        print(f"[DEBUG] Other exception caught: {type(e).__name__}: {e}", file=sys.stderr)
+        raise
 
 
 @router.get(

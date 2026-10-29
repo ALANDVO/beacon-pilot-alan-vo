@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Optional
+import sys
 from sqlalchemy import select, func, delete, update, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -44,19 +45,23 @@ class MemoryService:
                 )
             )
         )
-        if existing.scalar_one_or_none():
+        existing_unit = existing.scalar_one_or_none()
+        if existing_unit:
+            print(f"[DEBUG] Duplicate found: document_id={data.document_id}, content_hash={content_hash}, existing_id={existing_unit.id}", file=sys.stderr)
             raise ValueError(f"Memory unit with same content already exists in document {data.document_id}")
         
+        print(f"[DEBUG] Creating new unit: document_id={data.document_id}, content_hash={content_hash}", file=sys.stderr)
         unit = MemoryUnit(
             document_id=data.document_id,
             content=data.content,
             content_hash=content_hash,
             tags=data.tags,
-            memory_metadata=data.memory_metadata,
+            meta=data.metadata_dict,
             observation_scopes=data.observation_scopes,
         )
         self.session.add(unit)
         await self.session.flush()
+        print(f"[DEBUG] After flush, unit.id={unit.id}", file=sys.stderr)
         
         # Audit log
         audit = AuditLog(
@@ -68,11 +73,17 @@ class MemoryService:
                 "document_id": unit.document_id,
                 "content": unit.content,
                 "tags": unit.tags,
-                "metadata": unit.memory_metadata,
+                "metadata": unit.meta,
             },
         )
         self.session.add(audit)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+            print(f"[DEBUG] Commit successful", file=sys.stderr)
+        except Exception as e:
+            print(f"[DEBUG] Commit failed: {e}", file=sys.stderr)
+            await self.session.rollback()
+            raise
         await self.session.refresh(unit)
         
         return MemoryUnitResponse.model_validate(unit)
@@ -153,7 +164,7 @@ class MemoryService:
             "document_id": unit.document_id,
             "content": unit.content,
             "tags": unit.tags,
-            "metadata": unit.metadata_,
+            "metadata": unit.meta,
             "observation_scopes": unit.observation_scopes,
             "is_consolidated": unit.is_consolidated,
         }
@@ -161,19 +172,19 @@ class MemoryService:
         # Apply updates
         update_data = data.model_dump(exclude_unset=True)
         if "metadata" in update_data:
-            update_data["metadata_"] = update_data.pop("metadata")
+            update_data["meta"] = update_data.pop("metadata")
         
         for field, value in update_data.items():
             setattr(unit, field, value)
         
+        
         unit.updated_at = datetime.now(timezone.utc)
         
-        # Audit log
         after = {
             "document_id": unit.document_id,
             "content": unit.content,
             "tags": unit.tags,
-            "metadata": unit.metadata_,
+            "metadata": unit.meta,
             "observation_scopes": unit.observation_scopes,
             "is_consolidated": unit.is_consolidated,
         }

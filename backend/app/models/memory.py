@@ -27,9 +27,8 @@ class MemoryUnit(Base):
     
     # Metadata
     tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
-    memory_metadata: Mapped[dict] = mapped_column("memory_metadata", JSON, default=dict, nullable=False)
+    meta: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
     observation_scopes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
-    
     # Consolidation status
     is_consolidated: Mapped[bool] = mapped_column(default=False, nullable=False)
     consolidated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -63,7 +62,7 @@ class MemoryUnit(Base):
     @property
     def metadata_dict(self) -> dict:
         """Return metadata for serialization."""
-        return self.memory_metadata
+        return self.meta
 
 class MemoryObservation(Base):
     """An observation linking memory units (e.g., derived facts, relationships)."""
