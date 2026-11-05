@@ -27,7 +27,7 @@ class MemoryUnit(Base):
     
     # Metadata
     tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
-    meta: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
+    meta: Mapped[dict] = mapped_column("memory_metadata", JSON, default=dict, nullable=False)
     observation_scopes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     # Consolidation status
     is_consolidated: Mapped[bool] = mapped_column(default=False, nullable=False)
@@ -58,6 +58,7 @@ class MemoryUnit(Base):
         Index("ix_memory_units_document_consolidated", "document_id", "is_consolidated"),
         UniqueConstraint("document_id", "content_hash", name="uq_document_content_hash"),
     )
+
 
     @property
     def metadata_dict(self) -> dict:
@@ -127,6 +128,7 @@ class ConsolidationBatch(Base):
     __table_args__ = (
         Index("ix_consolidation_batches_document_status", "document_id", "status"),
     )
+
 
 
 class AuditLog(Base):

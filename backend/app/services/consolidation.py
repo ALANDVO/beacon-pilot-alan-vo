@@ -43,8 +43,8 @@ class ConsolidationService:
         primary.tags = list(set(primary.tags + duplicate.tags))
         
         # Merge metadata (primary wins on conflict)
-        merged_metadata = {**duplicate.metadata_, **primary.metadata_}
-        primary.metadata_ = merged_metadata
+        merged_metadata = {**duplicate.meta, **primary.meta}
+        primary.meta = merged_metadata
         
         # Merge observation scopes (union)
         primary.observation_scopes = list(set(primary.observation_scopes + duplicate.observation_scopes))
@@ -131,4 +131,6 @@ class ConsolidationService:
             deleted_ids=deleted_ids,
             new_units=[MemoryUnitResponse.model_validate(u) for u in final_units],
             duration_ms=duration_ms,
+            processed=units_before,
+            merged=len(merged_pairs),
         )

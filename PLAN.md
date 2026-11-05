@@ -10,7 +10,7 @@ core-api-skeleton
 
 ### core-api-skeleton — Core FastAPI skeleton with health check and basic memory CRUD
 
-Status: in_progress
+Status: done
 
 Acceptance:
 - FastAPI app starts and serves /health endpoint

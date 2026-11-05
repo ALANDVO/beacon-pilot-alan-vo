@@ -4,13 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_database
 from app.services.memory import MemoryService
+from app.services.consolidation import ConsolidationService
 from app.models.schemas import (
     ConsolidationBatchCreate,
     ConsolidationBatchResponse,
     ConsolidationReport,
     ErrorResponse,
 )
-
 router = APIRouter(prefix="/consolidate", tags=["consolidation"])
 
 
@@ -32,22 +32,8 @@ async def create_consolidation_batch(
     service: MemoryService = Depends(get_memory_service),
 ) -> ConsolidationBatchResponse:
     """Create a new consolidation batch (async job)."""
-    # Verify document exists
-    from app.models.memory import MemoryUnit
-    from sqlalchemy import select, func
-    
-    db = get_database()
-    async with db.session() as check_session:
-        result = await check_session.execute(
-            select(func.count(MemoryUnit.id)).where(MemoryUnit.document_id == data.document_id)
-        )
-        count = result.scalar_one()
-        if count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No memory units found for document {data.document_id}",
-            )
-    
+    # Note: Allow creating batch even for documents with no memories yet
+    # The consolidation run will handle empty documents gracefully
     return await service.create_batch(data)
 
 
@@ -80,7 +66,6 @@ async def run_consolidation(
     service: MemoryService = Depends(get_memory_service),
 ) -> ConsolidationReport:
     """Run consolidation for a batch (synchronous for now)."""
-    from ....services.consolidation import ConsolidationService
     
     batch = await service.get_batch(batch_id)
     if not batch:

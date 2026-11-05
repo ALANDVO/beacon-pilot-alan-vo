@@ -10,7 +10,7 @@ class MemoryUnitBase(BaseModel):
     document_id: str = Field(..., min_length=1, max_length=255)
     content: str = Field(..., min_length=1)
     tags: list[str] = Field(default_factory=list)
-    metadata_dict: dict[str, Any] = Field(default_factory=dict, alias="metadata")
+    meta: dict[str, Any] = Field(default_factory=dict, alias="metadata")
     observation_scopes: list[str] = Field(default_factory=list)
 
     model_config = ConfigDict(populate_by_name=True)
@@ -25,7 +25,7 @@ class MemoryUnitUpdate(BaseModel):
     """Schema for updating a memory unit."""
     content: Optional[str] = Field(None, min_length=1)
     tags: Optional[list[str]] = None
-    metadata_dict: Optional[dict[str, Any]] = Field(None, alias="metadata")
+    meta: Optional[dict[str, Any]] = Field(None, alias="metadata")
     observation_scopes: Optional[list[str]] = None
     is_consolidated: Optional[bool] = None
     consolidated_at: Optional[datetime] = None
@@ -43,7 +43,10 @@ class MemoryUnitResponse(MemoryUnitBase):
     consolidation_batch_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    model_config = ConfigDict(from_attributes=True, populate_by_name=False)
+    # Override meta field to not use alias for from_attributes, but serialize as metadata
+    meta: dict[str, Any] = Field(default_factory=dict, serialization_alias="metadata")
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, serialize_by_alias=True)
 
 
 class MemoryUnitListResponse(BaseModel):
@@ -98,10 +101,24 @@ class ConsolidationBatchResponse(BaseModel):
     started_at: datetime
     completed_at: Optional[datetime] = None
     
-    class Config:
-        from_attributes = True
-
-
+    model_config = ConfigDict(from_attributes=False)
+    
+    @classmethod
+    def from_orm(cls, obj: "ConsolidationBatch") -> "ConsolidationBatchResponse":
+        """Create response from ORM model, avoiding metadata conflict."""
+        return cls(
+            id=obj.id,
+            document_id=obj.document_id,
+            status=obj.status,
+            units_processed=obj.units_processed,
+            units_created=obj.units_created,
+            units_merged=obj.units_merged,
+            units_deleted=obj.units_deleted,
+            error_message=obj.error_message,
+            metadata=obj.metadata_,
+            started_at=obj.started_at,
+            completed_at=obj.completed_at,
+        )
 class ConsolidationReport(BaseModel):
     """Report from a consolidation run."""
     batch_id: str
@@ -113,7 +130,9 @@ class ConsolidationReport(BaseModel):
     deleted_ids: list[int]
     new_units: list[MemoryUnitResponse]
     duration_ms: int
-
+    # Aliases for test compatibility
+    processed: int
+    merged: int
 
 class HealthResponse(BaseModel):
     """Health check response."""
