@@ -56,7 +56,7 @@ class MemoryService:
             content=data.content,
             content_hash=content_hash,
             tags=data.tags,
-            meta=data.metadata_dict,
+            meta=data.meta,
             observation_scopes=data.observation_scopes,
         )
         self.session.add(unit)
@@ -170,10 +170,8 @@ class MemoryService:
         }
         
         # Apply updates
-        update_data = data.model_dump(exclude_unset=True)
-        if "metadata" in update_data:
-            update_data["meta"] = update_data.pop("metadata")
-        
+        update_data = data.model_dump(exclude_unset=True, by_alias=False)
+        # Handle meta field (schema uses 'meta' internally, alias 'metadata' for API)
         for field, value in update_data.items():
             setattr(unit, field, value)
         
@@ -217,7 +215,7 @@ class MemoryService:
             "document_id": unit.document_id,
             "content": unit.content,
             "tags": unit.tags,
-            "metadata": unit.metadata_,
+            "metadata": unit.meta,
         }
         audit = AuditLog(
             actor=actor,
@@ -247,7 +245,7 @@ class MemoryService:
         await self.session.commit()
         await self.session.refresh(batch)
         
-        return ConsolidationBatchResponse.model_validate(batch)
+        return ConsolidationBatchResponse.from_orm(batch)
     
     async def get_batch(self, batch_id: str) -> Optional[ConsolidationBatchResponse]:
         """Get a consolidation batch by ID."""
@@ -256,7 +254,7 @@ class MemoryService:
         )
         batch = result.scalar_one_or_none()
         if batch:
-            return ConsolidationBatchResponse.model_validate(batch)
+            return ConsolidationBatchResponse.from_orm(batch)
         return None
     
     async def update_batch_status(
@@ -290,4 +288,4 @@ class MemoryService:
         await self.session.commit()
         await self.session.refresh(batch)
         
-        return ConsolidationBatchResponse.model_validate(batch)
+        return ConsolidationBatchResponse.from_orm(batch)

@@ -5,7 +5,7 @@
     {
       "id": "core-api-skeleton",
       "title": "Core FastAPI skeleton with health check and basic memory CRUD",
-      "status": "in_progress",
+      "status": "done",
       "acceptance": [
         "FastAPI app starts and serves /health endpoint",
         "SQLite persistence with memory units table",

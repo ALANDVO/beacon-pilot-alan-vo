@@ -219,6 +219,16 @@ class TestPagination:
     
     @pytest.mark.asyncio
     async def test_pagination_second_page(self, client):
+        # Create 12 memories to have 2 full pages of 5
+        for i in range(12):
+            await client.post("/memories", json={
+                "document_id": f"doc-page2-{i}",
+                "content": f"Pagination fact {i}",
+                "tags": ["pagination"],
+                "metadata": {},
+                "observation_scopes": [],
+            })
+        
         response = await client.get("/memories?page=2&page_size=5")
         assert response.status_code == 200
         data = response.json()

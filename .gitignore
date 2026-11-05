@@ -60,3 +60,13 @@ frontend/coverage/
 
 # CI
 .github/workflows/*.yml.bak
+.turbo/
+**/data/media/
+__pycache__/
+*.pyc
+*.db-wal
+*.db-shm
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
