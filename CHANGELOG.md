@@ -53,3 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Portfolio.json with schema_version, workflows, auth, providers
 - MIT LICENSE
 - .env.example with all configuration options
+
+---
+
+Alan Vo · [alanvo.net](https://alanvo.net)
