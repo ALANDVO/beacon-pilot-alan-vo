@@ -4,7 +4,7 @@ Each round completes one feature or repair. Future items are planned, not implem
 
 ## Current round
 
-core-api-skeleton
+memory-extraction-engine
 
 ## Roadmap
 
@@ -27,7 +27,7 @@ Tests: `backend/tests/test_memories.py`
 
 ### memory-extraction-engine — Deterministic memory extraction engine (offline core)
 
-Status: planned
+Status: in_progress
 
 Acceptance:
 - Extract structured facts from conversation text without LLM
