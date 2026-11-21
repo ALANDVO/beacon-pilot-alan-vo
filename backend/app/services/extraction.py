@@ -80,7 +80,9 @@ class ExtractionService:
             List of extracted entities sorted by confidence then position.
         """
         effective_heuristic = use_heuristic if use_heuristic is not None else self.enable_heuristic
-        return extract_entities(text, patterns, use_heuristic=effective_heuristic)
+        # Use service's rules if no patterns override provided
+        rules = patterns if patterns is not None else self.rules
+        return extract_entities(text, rules, use_heuristic=effective_heuristic)
 
     def extract_relationships(
         self,

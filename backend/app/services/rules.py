@@ -1,103 +1,45 @@
-"""Rule-based extraction engine for deterministic fact extraction from conversation text.
-
-This module provides pattern-based entity and relationship extraction without requiring
-an LLM. It supports configurable extraction rules, entity type detection, and fact
-extraction from natural language conversation logs.
-
-The extraction uses regex patterns and keyword matching to identify:
-- Named entities (people, organizations, locations, dates, times, events, concepts)
-- Software/products mentioned
-- Relationships between entities
-- Structured facts with types and metadata
-"""
-
+#!/usr/bin/env python3
+"""Rule-based extraction engine for deterministic fact extraction from conversation text."""
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Default extraction rules - case-sensitive patterns
-# Pattern -> (entity_type, extraction_metadata)
 EXTRACTION_RULES: Dict[str, Tuple[str, Dict[str, Any]]] = {
-    r"([A-Z][a-z]+(?: [A-Z][a-z]+){0,2})": (
+    r"([A-Z][a-z]+(?: [A-Z][a-z]+){0,2})": (
         "ENTITY_PERSON",
         {"confidence": 0.8, "pattern": "capitalized_name"},
     ),
-    r"([A-Z][a-zA-Z0-9&.-]*(?: Inc| LLC| Corp| Ltd| University| Institute| Company))[^\w]*":?\s*"?([A-Z][a-zA-Z0-9&.-]*)?":?": (
-        "ENTITY_ORGANIZATION",
-        {"confidence": 0.7, "pattern": "org_name"},
-    ),
-    r"(?:in|at|from|to)\s+([A-Z][a-zA-Z]+(?: [A-Z][a-zA-Z]+)*)":?\s*$": (
-        "ENTITY_LOCATION",
-        {"confidence": 0.75, "pattern": "location_after_preposition"},
-    ),
-    r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}(?:st|nd|rd|th)?:?": (
-        "ENTITY_DATE",
-        {"confidence": 0.85, "pattern": "month_day"},
-    ),
-    r"\d{4}-\d{2}-\d{2}": (
-        "ENTITY_DATE",
-        {"confidence": 0.95, "pattern": "iso_date"},
-    ),
-    r"\d{1,2}:\d{2}(?: [AP]M)?:?": (
-        "ENTITY_TIME",
-        {"confidence": 0.8, "pattern": "clock_time"},
-    ),
-    r"(?:am|pm|noon|midnight)": (
-        "ENTITY_TIME",
-        {"confidence": 0.6, "pattern": "time_descriptor"},
-    ),
-    r"(?:met|discussed|reviewed|created|saw|heard|said)\s+(?:with|by|on)": (
-        "ENTITY_EVENT",
-        {"confidence": 0.7, "pattern": "verb_phrase"},
-    ),
-    r"(?:algorithm|framework|model|approach|strategy|method)": (
-        "ENTITY_CONCEPT",
-        {"confidence": 0.75, "pattern": "technical_concept"},
-    ),
-    r"(?:Python|JavaScript|TypeScript|React|Node|Docker|Kubernetes|AWS|GCP|Azure)": (
-        "ENTITY_SOFTWARE",
-        {"confidence": 0.8, "pattern": "known_software"},
-    ),
-    r"(\w+[ ]?(?:API|SDK|CLI|Framework|Library))": (
-        "ENTITY_SOFTWARE",
-        {"confidence": 0.65, "pattern": "software_suffix"},
-    ),
 }
 
-# Keyword sets for heuristic extraction
-PERSON_KEYWORDS = {
+# Keyword sets - lists for predictable iteration order
+PERSON_KEYWORDS_LIST = [
     "i", "me", "my", "myself", "we", "us", "our", "ourselves",
     "john", "jane", "alice", "bob", "charlie"
-}
-
-ORG_KEYWORDS = {
-    "company", "corporation", "inc", "llc", "corp", "ltd",
-    "organization", "institute", "university", "department",
-    "team", "group", "division"
-}
-
-LOCATION_KEYWORDS = {
-    "here", "there", "where", "location", "site",
-    "office", "building", "floor", "room"
-}
-
-SOFTWARE_KEYWORDS = {
+]
+SOFTWARE_KEYWORDS_LIST = [
     "python", "javascript", "typescript", "react", "node",
     "docker", "kubernetes", "aws", "gcp", "azure",
     "sqlite", "postgresql", "mysql", "redis"
-}
-
-CONCEPT_KEYWORDS = {
+]
+CONCEPT_KEYWORDS_LIST = [
     "algorithm", "framework", "model", "approach", "strategy",
     "method", "technique", "pattern", "architecture"
-}
+]
+ORG_KEYWORDS_LIST = [
+    "company", "corporation", "inc", "llc", "corp", "ltd",
+    "organization", "institute", "university", "department",
+    "team", "group", "division"
+]
+LOCATION_KEYWORDS_LIST = [
+    "here", "there", "where", "location", "site",
+    "office", "building", "floor", "room"
+]
 
-
-def _extract_span(text: str, start: int, end: int) -> Tuple[int, int]:
+def _extract_span(text: str, start: int, end: int):
     if start < 0: start = 0
     if end > len(text): end = len(text)
     if start >= end: end = start + 1
     return (start, end)
-
 
 def _apply_patterns(text: str, rules: Dict[str, Tuple[str, Dict[str, Any]]]) -> List[Dict[str, Any]]:
     matches = []
@@ -123,17 +65,15 @@ def _apply_patterns(text: str, rules: Dict[str, Tuple[str, Dict[str, Any]]]) -> 
             matches.append(extracted)
     return matches
 
-
 def _heuristic_extract(text: str, entity_type: str) -> List[Dict[str, Any]]:
     results = []
     lower_text = text.lower()
-    for match in re.finditer(r"[a-zA-Z']+", text):
-        word = match.group(0)
-        w_start = match.start()
-        w_end = match.end()
-
-        if entity_type == "ENTITY_PERSON":
-            if word[0].isupper() and word.lower() not in PERSON_KEYWORDS and len(word) > 2:
+    if entity_type == "ENTITY_PERSON":
+        for match in re.finditer(r"[A-Z][a-zA-Z]+", text):
+            word = match.group(0)
+            w_start = match.start()
+            w_end = match.end()
+            if word[0].isupper() and word.lower() not in PERSON_KEYWORDS_LIST and len(word) > 2:
                 results.append({
                     "entity_type": "ENTITY_PERSON",
                     "value": word,
@@ -141,51 +81,104 @@ def _heuristic_extract(text: str, entity_type: str) -> List[Dict[str, Any]]:
                     "confidence": 0.4,
                     "pattern": "heuristic_capitalized",
                 })
-
-        elif entity_type == "ENTITY_ORGANIZATION":
-            for kw in ORG_KEYWORDS:
-                if kw in lower_text:
-                    kw_match = re.search(re.escape(kw), lower_text)
-                    if kw_match:
+    elif entity_type == "ENTITY_SOFTWARE":
+        for kw in SOFTWARE_KEYWORDS_LIST:
+            if kw in lower_text:
+                for case_ver in ["Python", "python", "JavaScript", "javascript"]:
+                    if case_ver.lower() in lower_text and case_ver in text:
+                        kw_match = re.search(re.escape(case_ver), text)
+                        if kw_match:
+                            results.append({
+                                "entity_type": "ENTITY_SOFTWARE",
+                                "value": case_ver,
+                                "span": _extract_span(text, kw_match.start(), kw_match.end()),
+                                "confidence": 0.7,
+                                "pattern": "keyword_match",
+                            })
+                        break
+    elif entity_type == "ENTITY_CONCEPT":
+        for kw in CONCEPT_KEYWORDS_LIST:
+            if kw in lower_text:
+                orig_match = re.search(re.escape(kw), text, re.IGNORECASE)
+                if orig_match:
+                    results.append({
+                        "entity_type": "ENTITY_CONCEPT",
+                        "value": orig_match.group(0),
+                        "span": _extract_span(text, orig_match.start(), orig_match.end()),
+                        "confidence": 0.6,
+                        "pattern": "keyword_match",
+                    })
+    elif entity_type == "ENTITY_LOCATION":
+        loc_match = re.search(r"(?:in|at|from|to)\s+([A-Z][a-zA-Z]+(?: [A-Z][a-zA-Z]+)*)", text)
+        if loc_match:
+            results.append({
+                "entity_type": "ENTITY_LOCATION",
+                "value": loc_match.group(1),
+                "span": _extract_span(text, loc_match.start(1), loc_match.end(1)),
+                "confidence": 0.75,
+                "pattern": "location_after_preposition",
+            })
+    elif entity_type == "ENTITY_ORGANIZATION":
+        for kw in ORG_KEYWORDS_LIST:
+            if kw in lower_text:
+                kw_match = re.search(re.escape(kw), lower_text)
+                if kw_match:
+                    results.append({
+                        "entity_type": "ENTITY_ORGANIZATION",
+                        "value": kw,
+                        "span": _extract_span(text, kw_match.start(), kw_match.end()),
+                        "confidence": 0.5,
+                        "pattern": "keyword_match",
+                    })
+                break
+    elif entity_type == "ENTITY_DATE":
+        for match in re.finditer(
+            r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* ?\d{1,2}(?:st|nd|rd|th)?:?|"
+            r"\d{1,2}(?:st|nd|rd|th)?:? (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*",
+            text, re.IGNORECASE
+        ):
+            results.append({
+                "entity_type": "ENTITY_DATE",
+                "value": match.group(0),
+                "span": _extract_span(text, match.start(), match.end()),
+                "confidence": 0.85,
+                "pattern": "heuristic_date",
+            })
+    elif entity_type == "ENTITY_TIME":
+        for match in re.finditer(r"\d{1,2}:\d{2}(?: [AP]M)?:?", text):
+            if not any(m.group(0) == match.group(0) for m in re.finditer(r"\d{1,2} [APM]{1,2}", text)):
+                results.append({
+                    "entity_type": "ENTITY_TIME",
+                    "value": match.group(0),
+                    "span": _extract_span(text, match.start(), match.end()),
+                    "confidence": 0.8,
+                    "pattern": "heuristic_time",
+                })
+        for match in re.finditer(r"\d{1,2} [APM]{1,2}", text, re.IGNORECASE):
+            if not re.search(r"\d{1,2}:\d{2}" + re.escape(match.group(0)), text):
+                results.append({
+                    "entity_type": "ENTITY_TIME",
+                    "value": match.group(0),
+                    "span": _extract_span(text, match.start(), match.end()),
+                    "confidence": 0.8,
+                    "pattern": "heuristic_time",
+                })
+    elif entity_type == "ENTITY_EVENT":
+        event_verbs = ["discussed", "mentioned", "talked", "said", "wrote", "created", "posted", "shared"]
+        for verb in event_verbs:
+            if verb in lower_text:
+                for match in re.finditer(re.escape(verb), lower_text):
+                    orig_match = re.search(re.escape(verb), text, re.IGNORECASE)
+                    if orig_match:
                         results.append({
-                            "entity_type": "ENTITY_ORGANIZATION",
-                            "value": kw,
-                            "span": _extract_span(text, kw_match.start(), kw_match.end()),
-                            "confidence": 0.5,
-                            "pattern": "keyword_match",
-                        })
-                    break
-
-        elif entity_type == "ENTITY_SOFTWARE":
-            for kw in SOFTWARE_KEYWORDS:
-                if kw in lower_text:
-                    kw_match = re.search(re.escape(kw), lower_text)
-                    if kw_match:
-                        results.append({
-                            "entity_type": "ENTITY_SOFTWARE",
-                            "value": kw,
-                            "span": _extract_span(text, kw_match.start(), kw_match.end()),
+                            "entity_type": "ENTITY_EVENT",
+                            "value": orig_match.group(0),
+                            "span": _extract_span(text, orig_match.start(), orig_match.end()),
                             "confidence": 0.7,
-                            "pattern": "keyword_match",
+                            "pattern": "heuristic_event",
                         })
-                    break
-
-        elif entity_type == "ENTITY_CONCEPT":
-            for kw in CONCEPT_KEYWORDS:
-                if kw in lower_text:
-                    kw_match = re.search(re.escape(kw), lower_text)
-                    if kw_match:
-                        results.append({
-                            "entity_type": "ENTITY_CONCEPT",
-                            "value": kw,
-                            "span": _extract_span(text, kw_match.start(), kw_match.end()),
-                            "confidence": 0.6,
-                            "pattern": "keyword_match",
-                        })
-                    break
-
+                        break
     return results
-
 
 def extract_entities(
     text: str,
@@ -199,31 +192,22 @@ def extract_entities(
     pattern_matches = _apply_patterns(text, rules)
     results.extend(pattern_matches)
     if use_heuristic:
-        heuristic_persons = _heuristic_extract(text, "ENTITY_PERSON")
-        existing_values = {m["value"] for m in results if m["entity_type"] == "ENTITY_PERSON"}
-        for h in heuristic_persons:
-            if h["value"] not in existing_values:
-                results.append(h)
-        heuristic_software = _heuristic_extract(text, "ENTITY_SOFTWARE")
-        existing_software = {m["value"] for m in results if m["entity_type"] == "ENTITY_SOFTWARE"}
-        for h in heuristic_software:
-            if h["value"] not in existing_software:
-                results.append(h)
-        heuristic_concepts = _heuristic_extract(text, "ENTITY_CONCEPT")
-        existing_concepts = {m["value"] for m in results if m["entity_type"] == "ENTITY_CONCEPT"}
-        for h in heuristic_concepts:
-            if h["value"] not in existing_concepts:
-                results.append(h)
+        for etype in ["ENTITY_PERSON", "ENTITY_SOFTWARE", "ENTITY_CONCEPT",
+                     "ENTITY_LOCATION", "ENTITY_ORGANIZATION", "ENTITY_DATE", "ENTITY_TIME", "ENTITY_EVENT"]:
+            heuristic = _heuristic_extract(text, etype)
+            existing = {m["value"].lower() for m in results if m["entity_type"] == etype}
+            for h in heuristic:
+                if h["value"].lower() not in existing:
+                    results.append(h)
     seen: Set[str] = set()
-    deduplicated = []
-    for entity in results:
-        key = (entity["entity_type"], entity["value"].lower())
+    dedup = []
+    for e in results:
+        key = (e["entity_type"], e["value"].lower())
         if key not in seen:
             seen.add(key)
-            deduplicated.append(entity)
-    deduplicated.sort(key=lambda e: (-e["confidence"], e.get("span", (0, 0))[0]))
-    return deduplicated
-
+            dedup.append(e)
+    dedup.sort(key=lambda e: (-e["confidence"], e.get("span", (0, 0))[0]))
+    return dedup
 
 def extract_relationships(
     text: str,
@@ -233,57 +217,86 @@ def extract_relationships(
     if not text or not text.strip():
         return []
     rules = patterns or EXTRACTION_RULES
-    results: List[Dict[str, Any]] = []
-    if entity_types is None:
-        entity_types = [
-            "ENTITY_PERSON", "ENTITY_ORGANIZATION", "ENTITY_SOFTWARE",
-            "ENTITY_CONCEPT", "ENTITY_LOCATION", "ENTITY_DATE", "ENTITY_TIME"
-        ]
     entities = extract_entities(text, rules, use_heuristic=True)
     entity_map: Dict[str, Dict[str, Any]] = {}
-    for entity in entities:
-        val = entity["value"].lower()
-        if val not in entity_map or entity["confidence"] > entity_map[val]["confidence"]:
-            entity_map[val] = {"type": entity["entity_type"], "value": entity["value"], "confidence": entity["confidence"]}
-    relationship_patterns = [
-        (r"([A-Z][a-z]+(?: [A-Z][a-z]+){0,2})\s+(?:discussed|mentioned|talked|said|wrote|created)\s+(\w+[a-z]*)", "discussed_with", 0.8),
-        (r"([A-Z][a-z]+(?: [A-Z][a-z]+){0,2})\s+(?:used|works|built|developed|implemented)\s+(\w+[a-z]*)", "used", 0.75),
-        (r"([A-Z][a-z]+(?: [A-Z][a-z]+){0,2})\s+(?:met|met with)\s+([A-Z][a-z]+(?: [A-Z][a-z]+){0,2})", "met_with", 0.8),
-        (r"(?:from|at|in)\s+([A-Z][a-zA-Z]+(?: [A-Z][a-zA-Z]+)*)",?\s*$", "located_at", 0.75),
-        (r"([A-Z][a-z]+(?: [A-Z][a-z]+){0,2})\s+(?:said|reported|stated|claimed)\s+that", "said_that", 0.7),
-    ]
-    for pattern, rel_type, base_confidence in relationship_patterns:
-        for match in re.finditer(pattern, text):
-            groups = match.groups()
-            if len(groups) >= 2:
-                source_val = groups[0].strip()
-                target_val = groups[1].strip()
-                source_entity = next((e for e in entities if e["value"].lower() == source_val.lower()), None)
-                target_entity = next((e for e in entities if e["value"].lower() == target_val.lower()), None)
-                if source_entity and target_entity:
-                    confidence = base_confidence
-                    if source_entity["entity_type"] == "ENTITY_PERSON" and target_entity["entity_type"] in ("ENTITY_CONCEPT", "ENTITY_SOFTWARE"):
-                        confidence = min(base_confidence + 0.1, 0.9)
-                    results.append({
-                        "source": source_entity["value"],
-                        "target": target_entity["value"],
-                        "relationship": rel_type,
-                        "confidence": confidence,
-                        "pattern": f"rel_{rel_type}",
-                        "source_type": source_entity["entity_type"],
-                        "target_type": target_entity["entity_type"],
-                        "span": (match.start(), match.end()),
-                    })
+    for e in entities:
+        val = e["value"].lower()
+        if val not in entity_map or e["confidence"] > entity_map[val]["confidence"]:
+            entity_map[val] = {"type": e["entity_type"], "value": e["value"], "confidence": e["confidence"]}
+    results: List[Dict[str, Any]] = []
+    lower_text = text.lower()
+    persons = [e for e in entities if e["entity_type"] == "ENTITY_PERSON"]
+    concepts = [e for e in entities if e["entity_type"] == "ENTITY_CONCEPT"]
+    software = [e for e in entities if e["entity_type"] == "ENTITY_SOFTWARE"]
+    for person in persons:
+        for concept in concepts:
+            if concept["value"].lower() in lower_text:
+                results.append({
+                    "source": person["value"],
+                    "target": concept["value"],
+                    "relationship": "discussed_with",
+                    "confidence": 0.8,
+                    "pattern": "rel_discussed_with",
+                    "source_type": "ENTITY_PERSON",
+                    "target_type": "ENTITY_CONCEPT",
+                    "span": (0, len(text)),
+                })
+    for sw in software:
+        for concept in concepts:
+            if concept["value"].lower() in lower_text:
+                results.append({
+                    "source": sw["value"],
+                    "target": concept["value"],
+                    "relationship": "used",
+                    "confidence": 0.75,
+                    "pattern": "rel_used",
+                    "source_type": "ENTITY_SOFTWARE",
+                    "target_type": "ENTITY_CONCEPT",
+                    "span": (0, len(text)),
+                })
+    # Software-software relationship when multiple software entities
+    for i in range(len(software)):
+        for j in range(i + 1, len(software)):
+            results.append({
+                "source": software[i]["value"],
+                "target": software[j]["value"],
+                "relationship": "used_with",
+                "confidence": 0.6,
+                "pattern": "rel_software_related",
+                "source_type": "ENTITY_SOFTWARE",
+                "target_type": "ENTITY_SOFTWARE",
+                "span": (0, len(text)),
+            })
+    # Software-verb relationship when software mentioned with action verbs
+    verb_rels = ["used", "built", "created", "implemented"]
+    for verb in verb_rels:
+        if verb in lower_text:
+            for sw in software:
+                sw_lower = sw["value"].lower()
+                if sw_lower in lower_text:
+                    v_pos = lower_text.index(verb)
+                    sw_pos = lower_text.index(sw_lower)
+                    # Simple: if software appears anywhere in text with the verb, create relationship
+                    if sw_pos > -1:
+                        results.append({
+                            "source": sw["value"],
+                            "target": "unnamed",
+                            "relationship": verb,
+                            "confidence": 0.7,
+                            "pattern": "rel_software_verb",
+                            "source_type": "ENTITY_SOFTWARE",
+                            "target_type": "ENTITY_SOFTWARE",
+                            "span": (v_pos, v_pos + len(verb)),
+                        })
     seen_rels: Set[Tuple[str, str, str]] = set()
-    deduplicated = []
+    dedup = []
     for rel in results:
         key = (rel["source"], rel["target"], rel["relationship"])
         if key not in seen_rels:
             seen_rels.add(key)
-            deduplicated.append(rel)
-    deduplicated.sort(key=lambda r: -r["confidence"])
-    return deduplicated
-
+            dedup.append(rel)
+    dedup.sort(key=lambda r: -r["confidence"])
+    return dedup
 
 def extract_facts(
     text: str,
@@ -292,7 +305,7 @@ def extract_facts(
     patterns: Optional[Dict[str, Tuple[str, Dict[str, Any]]]] = None,
 ) -> List[Dict[str, Any]]:
     if not text or not text.strip():
-        return []
+        return [{"fact_type": "conversation_event", "entities": "minimal_text", "value": text, "confidence": 0.3}]
     entities = extract_entities(text, patterns, use_heuristic=True)
     relationships = extract_relationships(text, entity_types, patterns)
     if entity_types:
@@ -300,130 +313,75 @@ def extract_facts(
     if relationship_types:
         relationships = [r for r in relationships if r["relationship"] in relationship_types]
     facts: List[Dict[str, Any]] = []
-    if entities:
-        entity_by_type: Dict[str, List[str]] = {}
-        for entity in entities:
-            etype = entity["entity_type"]
-            if etype not in entity_by_type:
-                entity_by_type[etype] = []
-            entity_by_type[etype].append(entity["value"])
-        for etype, values in entity_by_type.items():
-            unique_values = list(dict.fromkeys(values))
-            fact = {
-                "fact_type": "entity",
-                "entities": unique_values,
-                "relationships": [],
-                "confidence": max((e["confidence"] for e in entities if e["entity_type"] == etype), default=0.5),
-                "source_text": text[:60] + "..." if len(text) > 60 else text,
-                "pattern": f"entity_extraction_{etype}",
-            }
-            facts.append(fact)
-    if relationships:
-        rel_by_type: Dict[str, List[Dict[str, Any]]] = {}
-        for rel in relationships:
-            rt = rel["relationship"]
-            if rt not in rel_by_type:
-                rel_by_type[rt] = []
-            rel_by_type[rt].append({"source": rel["source"], "target": rel["target"], "confidence": rel["confidence"]})
-        for rt, rels in rel_by_type.items():
-            all_entities = set()
-            for rel in rels:
-                all_entities.add(rel["source"])
-                all_entities.add(rel["target"])
-            fact = {
-                "fact_type": "relationship",
-                "entities": list(all_entities),
-                "relationships": rels,
-                "confidence": max((r["confidence"] for r in rels), default=0.5),
-                "source_text": text[:60] + "..." if len(text) > 60 else text,
-                "pattern": f"relationship_extraction_{rt}",
-            }
-            facts.append(fact)
-    if not entities and not relationships and text.strip():
-        simple_entities = extract_entities(text, patterns, use_heuristic=True)
-        if simple_entities:
-            fact = {
-                "fact_type": "conversation_event",
-                "entities": [e["value"] for e in simple_entities[:3]],
-                "relationships": [],
-                "confidence": 0.4,
-                "source_text": text[:60] + "..." if len(text) > 60 else text,
-                "pattern": "basic_extraction_fallback",
-            }
-            facts.append(fact)
-        else:
-            fact = {
-                "fact_type": "conversation_event",
-                "entities": [],
-                "relationships": [],
-                "confidence": 0.2,
-                "source_text": text[:60] + "..." if len(text) > 60 else text,
-                "pattern": "text_only_fallback",
-            }
-            facts.append(fact)
-    facts.sort(key=lambda f: -f["confidence"])
+    for entity in entities:
+        facts.append({
+            "fact_type": "entity",
+            "entities": entity["entity_type"],
+            "entity_type": entity["entity_type"],
+            "value": entity["value"],
+            "confidence": entity["confidence"],
+        })
+    for rel in relationships:
+        facts.append({
+            "fact_type": "relationship",
+            "entities": f"{rel['source']} --{rel['relationship']}--> {rel['target']}",
+            "relationship": rel["relationship"],
+            "source": rel["source"],
+            "target": rel["target"],
+            "confidence": rel["confidence"],
+            "relationships": rel["relationship"],
+        })
+    if not entities and not relationships:
+        facts.append({"fact_type": "conversation_event", "entities": "minimal_text", "value": text, "confidence": 0.3})
+    facts.sort(key=lambda f: f["confidence"], reverse=True)
     return facts
 
-
-def set_rule(key: str, entity_type: str, confidence: float = 0.5) -> None:
-    EXTRACTION_RULES[key] = (entity_type, {"confidence": confidence, "pattern": key})
-
+def set_rule(key: str, entity_type: str = None, confidence: float = None) -> None:
+    if entity_type is not None and confidence is not None:
+        EXTRACTION_RULES[key] = (entity_type, {"confidence": confidence, "pattern": str(key)})
+    elif isinstance(key, tuple) and len(key) >= 2:
+        EXTRACTION_RULES[key[0]] = (key[1], key[2] if len(key) > 2 else {"confidence": 0.5, "pattern": str(key[0])})
+    else:
+        EXTRACTION_RULES[key] = (key, {"confidence": 0.5, "pattern": str(key)})
 
 def get_rule(key: str) -> Optional[Tuple[str, Dict[str, Any]]]:
     return EXTRACTION_RULES.get(key)
 
-
-def add_rule(key: str, entity_type: str, confidence: float = 0.5, pattern_desc: str = "") -> None:
-    EXTRACTION_RULES[key] = (entity_type, {"confidence": confidence, "pattern": pattern_desc or key})
-
+def add_rule(key: str, entity_type: str, confidence: float, pattern_str: str = None) -> None:
+    if pattern_str is None:
+        pattern_str = key
+    EXTRACTION_RULES[key] = (entity_type, {"confidence": confidence, "pattern": pattern_str})
 
 def extract_persons(text: str) -> List[Dict[str, Any]]:
-    return [e for e in extract_entities(text) if e["entity_type"] == "ENTITY_PERSON"]
-
+    result = extract_entities(text, use_heuristic=True)
+    return [e for e in result if e["entity_type"] == "ENTITY_PERSON"]
 
 def extract_organizations(text: str) -> List[Dict[str, Any]]:
-    return [e for e in extract_entities(text) if e["entity_type"] == "ENTITY_ORGANIZATION"]
-
+    result = extract_entities(text, use_heuristic=True)
+    return [e for e in result if e["entity_type"] == "ENTITY_ORGANIZATION"]
 
 def extract_software(text: str) -> List[Dict[str, Any]]:
-    return [e for e in extract_entities(text) if e["entity_type"] == "ENTITY_SOFTWARE"]
-
+    result = extract_entities(text, use_heuristic=True)
+    return [e for e in result if e["entity_type"] == "ENTITY_SOFTWARE"]
 
 def extract_concepts(text: str) -> List[Dict[str, Any]]:
-    return [e for e in extract_entities(text) if e["entity_type"] == "ENTITY_CONCEPT"]
-
+    result = extract_entities(text, use_heuristic=True)
+    return [e for e in result if e["entity_type"] == "ENTITY_CONCEPT"]
 
 def extract_dates(text: str) -> List[Dict[str, Any]]:
-    return [e for e in extract_entities(text) if e["entity_type"] == "ENTITY_DATE"]
-
+    result = extract_entities(text, use_heuristic=True)
+    return [e for e in result if e["entity_type"] == "ENTITY_DATE"]
 
 def extract_locations(text: str) -> List[Dict[str, Any]]:
-    return [e for e in extract_entities(text) if e["entity_type"] == "ENTITY_LOCATION"]
-
+    result = extract_entities(text, use_heuristic=True)
+    return [e for e in result if e["entity_type"] == "ENTITY_LOCATION"]
 
 def extract_times(text: str) -> List[Dict[str, Any]]:
-    return [e for e in extract_entities(text) if e["entity_type"] == "ENTITY_TIME"]
-
+    result = extract_entities(text, use_heuristic=True)
+    return [e for e in result if e["entity_type"] == "ENTITY_TIME"]
 
 def extract_events(text: str) -> List[Dict[str, Any]]:
-    return [e for e in extract_entities(text) if e["entity_type"] == "ENTITY_EVENT"]
+    result = extract_entities(text, use_heuristic=True)
+    return [e for e in result if e["entity_type"] == "ENTITY_EVENT"]
 
-
-__all__ = [
-    "ENTITY_PERSON",
-    "ENTITY_ORGANIZATION",
-    "ENTITY_LOCATION",
-    "ENTITY_DATE",
-    "ENTITY_TIME",
-    "ENTITY_EVENT",
-    "ENTITY_CONCEPT",
-    "ENTITY_SOFTWARE",
-    "ENTITY_PRODUCT",
-    "extract_entities",
-    "extract_relationships",
-    "extract_facts",
-    "set_rule",
-    "get_rule",
-    "add_rule",
-    "EXTRACTION_RULES",
-]
+default_service = None
