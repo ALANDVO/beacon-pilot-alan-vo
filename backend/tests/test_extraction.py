@@ -20,6 +20,9 @@ from app.services.extraction import (
     EXTRACTION_RULES,
 )
 
+from app.services.rules import add_rule
+
+
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 @pytest.fixture
